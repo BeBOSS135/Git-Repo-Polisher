@@ -104,7 +104,7 @@ export function sanitizeMarkdown(text) {
 // ---------------------------------------------------------------------------
 export function buildReadmePrompt({
   repoName, stacks, fileList, mainFiles, existingReadme,
-  isML = false, datasetRefs = [],
+  manifest, runCommand, isML = false, datasetRefs = [],
 }) {
   const tree = fileList.slice(0, 60).join('\n');
   const code = mainFiles
@@ -137,6 +137,10 @@ ${datasetRefs.length ? datasetRefs.join('\n') : '(none detected — use a placeh
 `
     : '';
 
+  const manifestBlock = manifest
+    ? `\nDependency manifest (use its ACTUAL scripts/commands for install & run — do not invent commands like \`npm start\` if no "start" script exists):\n${manifest.slice(0, 1200)}\n`
+    : '';
+
   return `You are a senior developer writing a professional README.md for a GitHub repository.
 
 Repository: ${repoName}
@@ -146,12 +150,12 @@ ${tree}
 
 Key source files:
 ${code}
-${improve}
+${manifestBlock}${improve}
 Write a complete, professional README.md in GitHub-flavoured markdown. Include:
 - Project title and one-paragraph description of what it actually does (infer from the code, do not invent features)
-- Tech stack
+- Tech stack — list ONLY languages and tools from the detected stack(s) above; do NOT add languages that aren't actually used (note: filenames or strings mentioning another language do not mean the project uses it)
 - Installation steps
-- Usage example
+- Usage example${runCommand ? ` — the run command is EXACTLY \`${runCommand}\`; use it verbatim and do NOT substitute \`npm start\`` : ''}
 - Folder structure overview
 ${mlBlock}
 Output ONLY the raw markdown. No preamble, no explanation, no code fences around the whole thing.`;

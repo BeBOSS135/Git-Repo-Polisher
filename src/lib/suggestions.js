@@ -10,7 +10,9 @@ const SRC_EXT = {
   go: ['go'],
   rust: ['rs'],
 };
-const DATA_EXT = /\.(csv|tsv|npz|npy|h5|hdf5|parquet|pkl|json|txt|dat|xlsx)$/i;
+// Unambiguous data formats only — excludes .json/.txt so config/manifest files
+// (package.json, requirements.txt) aren't mistaken for datasets.
+const DATA_EXT = /\.(csv|tsv|npz|npy|h5|hdf5|parquet|pkl|xlsx)$/i;
 const IMG_EXT = /\.(png|jpe?g|gif|svg)$/i;
 
 const extOf = (p) => {

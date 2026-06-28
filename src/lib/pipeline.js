@@ -53,9 +53,14 @@ const ML_PACKAGES = new Set([
   'tensorflow', 'keras', 'torch', 'sklearn', 'scikit-learn', 'xgboost', 'lightgbm',
   'numpy', 'pandas', 'scipy', 'transformers', 'cv2', 'matplotlib', 'seaborn',
 ]);
-const DATA_EXT = /\.(csv|tsv|npz|npy|h5|hdf5|parquet|pkl|json|ipynb)$/i;
+// Unambiguous data formats only. Deliberately excludes .json/.txt — every Node repo
+// has package.json and many have requirements.txt, which falsely flagged non-ML repos.
+const DATA_EXT = /\.(csv|tsv|npz|npy|h5|hdf5|parquet|pkl|ipynb)$/i;
 
 function isMLProject(analysis) {
+  // The Environment/Hardware/Dataset sections are Python-oriented (conda, pip, GPU),
+  // so only emit them for Python projects — a JS/Vite app must never get them.
+  if (analysis.primary !== 'python') return false;
   const usesMLLib = [...analysis.imports].some((line) =>
     [...ML_PACKAGES].some((p) => line.includes(p))
   );
@@ -216,6 +221,15 @@ export async function generateFiles(analysis, opts = {}) {
   const isML = isMLProject(analysis);
   const datasetRefs = isML ? extractDatasetRefs(analysis.mainFiles, analysis.fileList) : [];
 
+  // Determine the real run command from package.json scripts (don't let the LLM guess `npm start`).
+  let runCommand;
+  if (primary === 'node' && analysis.manifest?.content) {
+    try {
+      const s = JSON.parse(analysis.manifest.content).scripts || {};
+      runCommand = s.start ? 'npm start' : s.dev ? 'npm run dev' : s.serve ? 'npm run serve' : null;
+    } catch { /* malformed package.json — leave undefined */ }
+  }
+
   // LLM files — README then deps. Output sanitised to strip fences/preamble.
   onProgress('Generating README (LLM)…');
   const readme = files.find((f) => f.id === 'readme');
@@ -227,6 +241,8 @@ export async function generateFiles(analysis, opts = {}) {
         fileList: analysis.fileList,
         mainFiles: analysis.mainFiles,
         existingReadme: analysis.existingReadme?.content,
+        manifest: analysis.manifest?.content,
+        runCommand,
         isML,
         datasetRefs,
       }),
